@@ -1,4 +1,3 @@
-using System;
 using SFML.Graphics;
 using SFML.System;
 
@@ -35,6 +34,5 @@ namespace Durak
         {
             text.Draw(target, RenderStates.Default);
         }
-       
     }
 }

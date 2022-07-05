@@ -41,5 +41,10 @@ namespace Durak
 
             return first;
         }
+
+        public Card GetLast()
+        {
+            return Cards.Last();
+        }
     }
 }

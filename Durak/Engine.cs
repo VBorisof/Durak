@@ -13,7 +13,8 @@ namespace Durak
             
             var deck = new Deck();
             deck.Shuffle();
-            
+
+            /*
             var player = new Player();
             for (int i = 0; i < 6; ++i)
             {
@@ -21,7 +22,8 @@ namespace Durak
             }
             
             player.Update();
-            
+            */
+
             using (var _window = new RenderWindow(new VideoMode(1920, 1080), "Game"))
             {
                 _window.Closed += (_, __) => _window.Close();
@@ -50,7 +52,7 @@ namespace Durak
                         );
                     }
                     
-                    player.Draw(_window, RenderStates.Default);
+                    // player.Draw(_window, RenderStates.Default);
                     
                     _window.DispatchEvents();
                     
