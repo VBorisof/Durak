@@ -16,7 +16,6 @@ namespace Durak
             _textureCache = new TextureCache();
             _textureCache.LoadCardTextures("res/cards.png");
             
-            
             for (int i = 0; i < numPacks; ++i)
             {
                 foreach (var suit in Enum.GetValues(typeof(CardSuit)))

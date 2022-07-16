@@ -52,16 +52,31 @@ namespace Durak
 
                 switch(key)
                 {
-                    case ConsoleKey.A:
+                    case ConsoleKey.M:
+                        if (game.GameState != GameState.Started)
+                        {
+                            break;
+                        }
                         var turnResult = game.Move();
                         Console.WriteLine($"[+] Moved.");
                         if (turnResult.IsGameOver)
                         {
                             Console.WriteLine("[+] Game over.");
-                            key = ConsoleKey.X;
+                            Console.WriteLine("[-] Hit R to restart. Hit X to exit.");
                             continue;
                         }
                         break;
+
+                    case ConsoleKey.R:
+                        if (game.GameState == GameState.Initialized)
+                        {
+                            break;
+                        }
+
+                        game.Restart();
+
+                        break;
+
                 }
 
                 key = Console.ReadKey().Key;

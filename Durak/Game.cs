@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+#nullable enable
+
 namespace Durak
 {
     public class TurnResult
@@ -9,18 +11,25 @@ namespace Durak
         public bool IsGameOver { get; set; }
     }
 
+    public enum GameState
+    {
+        Initialized,
+        Started,
+        Over
+    }
+
     public class Game
     {
-        public bool IsStarted { get; set; }
+        public GameState GameState { get; set; }
 
         public Deck Deck { get; set; }
-        public Card LastCard { get; set; }
+        public Card? LastCard { get; set; }
         public CardSuit Trump { get; set; }
 
         public List<Player> Players { get; set; }
 
-        public Player Attacker { get; set; }
-        public Player Defender { get; set; }
+        public Player? Attacker { get; set; }
+        public Player? LastLoser { get; set; }
 
         public const int MIN_PLAYER_CARDS = 6;
 
@@ -28,11 +37,13 @@ namespace Durak
         {
             Deck = new Deck(1);
             Players = new List<Player>();
+
+            GameState = GameState.Initialized;
         }
 
         public bool AddPlayer(Player player)
         {
-            if (IsStarted)
+            if (GameState == GameState.Started)
             {
                 return false;
             }
@@ -56,7 +67,7 @@ namespace Durak
 
         public bool Deal()
         {
-            if (IsStarted)
+            if (GameState == GameState.Started)
             {
                 return false;
             }
@@ -66,19 +77,7 @@ namespace Durak
                 return false;
             }
 
-            Deck = new Deck();
-            Deck.Shuffle();
-
-            LastCard = Deck.GetLast();
-            Trump = LastCard.Suit;
-
-            for (int i = 0; i < MIN_PLAYER_CARDS; ++i)
-            {
-                foreach(var player in Players)
-                {
-                    player.PlayerCards.Add(Deck.PopFirst());
-                }
-            }
+            InitDeck();
 
             // See who's got lowest trump, otherwise lowest card. They will go first.
             Attacker = Players.Where(p => p.PlayerCards.Any(c => c.Suit == Trump))
@@ -92,10 +91,18 @@ namespace Durak
                     .First();
             }
 
-            Defender = Players.Skip(1).First();
-
-            IsStarted = true;
+            GameState = GameState.Started;
             return true;
+        }
+
+
+        public void Restart()
+        {
+            InitDeck();
+
+            Attacker = Players.Single(p => p.GetNext() == LastLoser);
+
+            GameState = GameState.Started;
         }
 
         public TurnResult Move()
@@ -103,39 +110,41 @@ namespace Durak
             // TODO: No check for no-cards players
 
             var originalAttacker = Attacker;
-            var originalDefender = Attacker.GetNextWithCards();
+            var originalDefender = Attacker?.GetNextWithCards();
 
-            var attackCard = originalAttacker.Attack();
-            Console.WriteLine($"{originalAttacker.Name} moves with {attackCard}...");
+            var attackCard = originalAttacker?.Attack();
+            Console.WriteLine($"{originalAttacker?.Name} moves with {attackCard}...");
 
-            var nextPlayerIndex = Players.IndexOf(originalDefender);
-            var defendCard = originalDefender.Defend(attackCard);
-            Console.WriteLine($"{originalDefender.Name} defends with {(defendCard == null ? "NOTHING" : defendCard.ToString())}");
+            var nextPlayerIndex = Players.IndexOf(originalDefender!);
+            var defendCard = originalDefender?.Defend(attackCard);
+            Console.WriteLine($"{originalDefender?.Name} defends with {(defendCard == null ? "NOTHING" : defendCard.ToString())}");
             
             if (defendCard == null)
             {
                 // Means he's taken and will skip turn.
-                Attacker = originalDefender.GetNextWithCards();
+                Attacker = originalDefender?.GetNextWithCards();
             }
             else
             {
-                Attacker = Attacker.GetNextWithCards();
+                Attacker = Attacker?.GetNextWithCards();
             }
 
             Console.WriteLine("Turn ends.");
 
-            DrawCards(originalAttacker, originalDefender);
+            DrawCards(originalAttacker!, originalDefender!);
 
             Console.WriteLine("Cards Drawn.");
 
             var playersWithCards = Players.Where(p => p.PlayerCards.Count() > 0);
             if (playersWithCards.Count() == 1)
             {
-                Console.WriteLine($"Game over. Player {playersWithCards.First().Name} lost.");
+                LastLoser = playersWithCards.First();
+                Console.WriteLine($"Game over. Player {LastLoser.Name} lost.");
+                GameState = GameState.Over;
                 return new TurnResult { IsGameOver = true };
             }
 
-            Console.WriteLine($"Next turn: {Attacker.Name} attacks {Attacker.GetNextWithCards().Name}");
+            Console.WriteLine($"Next turn: {Attacker?.Name} attacks {Attacker?.GetNextWithCards().Name}");
             return new TurnResult { IsGameOver = false };
         }
 
@@ -173,6 +182,27 @@ namespace Durak
             )
             {
                 player.PlayerCards.Add(Deck.PopFirst());
+            }
+        }
+
+        private void InitDeck()
+        {
+            foreach(var player in Players)
+            {
+                player.PlayerCards.Clear();
+            }
+            Deck = new Deck();
+            Deck.Shuffle();
+            
+            LastCard = Deck.GetLast();
+            Trump = LastCard.Suit;
+
+            for (int i = 0; i < MIN_PLAYER_CARDS; ++i)
+            {
+                foreach(var player in Players)
+                {
+                    player.PlayerCards.Add(Deck.PopFirst());
+                }
             }
         }
     }
