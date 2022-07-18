@@ -21,7 +21,7 @@ namespace Durak
             {
                 Position = position,
                 FillColor = Color.Green,
-                CharacterSize = 8,
+                CharacterSize = 24,
                 Scale = Scale,
                 OutlineColor = Color.Black,
                 OutlineThickness = 1.0f

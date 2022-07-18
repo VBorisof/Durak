@@ -9,8 +9,7 @@ namespace Durak
 
         public override void Update()
         {
-            // TODO:
-            // base.Update();
+            base.Update();
         }
 
         public override Card Attack()

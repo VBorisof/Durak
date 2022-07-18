@@ -77,16 +77,16 @@ namespace Durak
             switch(Suit)
             {
                 case CardSuit.Spades:
-                    suit = '♠';
+                    suit = 'S';
                     break;
                 case CardSuit.Clubs:
-                    suit = '♣';
+                    suit = 'C';
                     break;
                 case CardSuit.Diamonds:
-                    suit = '♦';
+                    suit = 'D';
                     break;
                 case CardSuit.Hearts:
-                    suit = '♥';
+                    suit = 'H';
                     break;
             }
             return $"{value}{suit}";

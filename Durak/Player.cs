@@ -10,6 +10,7 @@ namespace Durak
         public Game Game { get; set; }
         public List<Card> PlayerCards { get; } = new List<Card>();
         public Player Next { private get; set; }
+        public Vector2f Position { get; set; } = new Vector2f();
 
         public Player GetNextWithCards()
         {
@@ -34,7 +35,7 @@ namespace Durak
         {
             for (int i = 0; i < PlayerCards.Count; ++i)
             {
-                PlayerCards[i].Sprite.Position = new Vector2f(700 + i * 55, 700);
+                PlayerCards[i].Sprite.Position = Position + new Vector2f(i * 55, 0);
             }
         }
         
