@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using SFML.Graphics;
 using SFML.System;
 using SFML.Window;
@@ -21,20 +21,26 @@ namespace Durak
             bot1.Name = "1";
             var bot2 = new Bot()
             {
-                Position = new Vector2f(100, 300)
+                Position = new Vector2f(100, 400)
             };
             bot2.Name = "2";
             var bot3 = new Bot()
             {
-                Position = new Vector2f(100, 400)
+                Position = new Vector2f(100, 600)
             };
             bot3.Name = "3";
+            var bot4 = new Bot()
+            {
+                Position = new Vector2f(100, 800)
+            };
+            bot4.Name = "4";
 
             game.AddPlayer(bot1);
             game.AddPlayer(bot2);
-            game.AddPlayer(bot3);
+            //game.AddPlayer(bot3);
+            //game.AddPlayer(bot4);
             
-            game.Deal();
+            game.Init();
 
             foreach(var player in game.Players)
             {
@@ -48,11 +54,6 @@ namespace Durak
 
                 _window.KeyPressed += (_, keyArgs) =>
                 {
-                    foreach(var player in game.Players)
-                    {
-                        player.Update();
-                    }
-
                     if (keyArgs.Code == Keyboard.Key.Escape)
                     {
                         _window.Close();
@@ -63,9 +64,9 @@ namespace Durak
                         {
                             return;
                         }
-                        var turnResult = game.Move();
+                        game.Move();
                         Console.WriteLine($"[+] Moved.");
-                        if (turnResult.IsGameOver)
+                        if (game.GameState == GameState.Over)
                         {
                             Console.WriteLine("[+] Game over.");
                             Console.WriteLine("[-] Hit R to restart. Hit Escape to exit.");
@@ -74,12 +75,12 @@ namespace Durak
 
                     if (keyArgs.Code == Keyboard.Key.R)
                     {
-                        if (game.GameState != GameState.Over)
-                        {
-                            return;
-                        }
+                        game.ResetTable();
+                    }
 
-                        game.Restart();
+                    foreach(var player in game.Players)
+                    {
+                        player.Update();
                     }
                 };
                 

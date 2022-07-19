@@ -35,7 +35,7 @@ namespace Durak
         {
             for (int i = 0; i < PlayerCards.Count; ++i)
             {
-                PlayerCards[i].Sprite.Position = Position + new Vector2f(i * 55, 0);
+                PlayerCards[i].Sprite.Position = Position + new Vector2f(i * 100/*55*/, 100);
             }
         }
         

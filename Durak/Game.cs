@@ -6,18 +6,6 @@ using System.Linq;
 
 namespace Durak
 {
-    public class TurnResult
-    {
-        public bool IsGameOver { get; set; }
-    }
-
-    public enum GameState
-    {
-        Initialized,
-        Started,
-        Over
-    }
-
     public class Game
     {
         public GameState GameState { get; set; }
@@ -65,7 +53,7 @@ namespace Durak
             return true;
         }
 
-        public bool Deal()
+        public bool Init()
         {
             if (GameState == GameState.Started)
             {
@@ -77,37 +65,23 @@ namespace Durak
                 return false;
             }
 
-            InitDeck();
+            ResetTable();
 
-            // See who's got lowest trump, otherwise lowest card. They will go first.
-            Attacker = Players.Where(p => p.PlayerCards.Any(c => c.Suit == Trump))
-                .OrderBy(p => p.PlayerCards.Where(c => c.Suit == Trump).Min(c => c.Value))
-                .FirstOrDefault();
-
-            if (Attacker == null)
-            {
-                Attacker = Players
-                    .OrderBy(p => p.PlayerCards.Min(c => c.Value))
-                    .First();
-            }
-
-            GameState = GameState.Started;
             return true;
         }
 
-
-        public void Restart()
+        public void ResetTable()
         {
             InitDeck();
 
-            Attacker = Players.Single(p => p.GetNext() == LastLoser);
+            InitAttacker();
 
             GameState = GameState.Started;
         }
 
-        public TurnResult Move()
+        public void Move()
         {
-            // TODO: No check for no-cards players
+            // TODO: Rework this method to be an atomic player move.
 
             var originalAttacker = Attacker;
             var originalDefender = Attacker?.GetNextWithCards();
@@ -141,11 +115,17 @@ namespace Durak
                 LastLoser = playersWithCards.First();
                 Console.WriteLine($"Game over. Player {LastLoser.Name} lost.");
                 GameState = GameState.Over;
-                return new TurnResult { IsGameOver = true };
+                return;
+            }
+            if (playersWithCards.Count() == 0)
+            {
+                Console.WriteLine($"Game over. It's a draw!");
+                GameState = GameState.Over;
+                return;
             }
 
             Console.WriteLine($"Next turn: {Attacker?.Name} attacks {Attacker?.GetNextWithCards().Name}");
-            return new TurnResult { IsGameOver = false };
+            return;
         }
 
         private void DrawCards(Player first, Player last)
@@ -202,6 +182,28 @@ namespace Durak
                 foreach(var player in Players)
                 {
                     player.PlayerCards.Add(Deck.PopFirst());
+                }
+            }
+        }
+
+        private void InitAttacker()
+        {
+            if (LastLoser != null)
+            {
+                Attacker = Players.Single(p => p.GetNext() == LastLoser);
+            }
+            else
+            {
+                // See who's got lowest trump, otherwise lowest card. They will go first.
+                Attacker = Players.Where(p => p.PlayerCards.Any(c => c.Suit == Trump))
+                    .OrderBy(p => p.PlayerCards.Where(c => c.Suit == Trump).Min(c => c.Value))
+                    .FirstOrDefault();
+
+                if (Attacker == null)
+                {
+                    Attacker = Players
+                        .OrderBy(p => p.PlayerCards.Min(c => c.Value))
+                        .First();
                 }
             }
         }

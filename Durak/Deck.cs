@@ -6,7 +6,7 @@ namespace Durak
 {
     public class Deck
     {
-        private TextureCache _textureCache;
+        public TextureCache _textureCache;
         private Random _random = new Random();
         
         public List<Card> Cards { get; set; } = new List<Card>();
