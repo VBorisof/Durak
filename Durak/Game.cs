@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using SFML.System;
 
 #nullable enable
 
@@ -21,12 +23,30 @@ namespace Durak
 
         public const int MIN_PLAYER_CARDS = 6;
 
+        public Card? AttackingCard { get; set; } = null;
+
+        // Cards currently on the table.
+        public List<Card> TableCards { get; set; } = new List<Card>();
+        private Vector2f _tablePos = new Vector2f(800, 400);
+
+        public List<Card> Beaten { get; set; } = new List<Card>();
+
+        public const int turn_time_seconds = 30;
+        private Stopwatch _sw;
+
         public Game()
         {
             Deck = new Deck(1);
             Players = new List<Player>();
 
             GameState = GameState.Initialized;
+
+            _sw = new Stopwatch();
+        }
+
+        public int GetTurnTimeLeft()
+        {
+            return turn_time_seconds - _sw.Elapsed.Seconds;
         }
 
         public bool AddPlayer(Player player)
@@ -49,6 +69,8 @@ namespace Durak
                 Players.ElementAt(Players.Count - 2).Next = player;
                 player.Next = Players.First();
             }
+
+            player.PlayerPickedCard += OnPlayerPickedCard;
 
             return true;
         }
@@ -74,58 +96,25 @@ namespace Durak
         {
             InitDeck();
 
-            InitAttacker();
+            // TODO: We have some trouble with initial state
+            // setting if the PC is next.
+            Attacker = ComputeAttacker();
 
             GameState = GameState.Started;
         }
 
-        public void Move()
+        public void Update()
         {
-            // TODO: Rework this method to be an atomic player move.
-
-            var originalAttacker = Attacker;
-            var originalDefender = Attacker?.GetNextWithCards();
-
-            var attackCard = originalAttacker?.Attack();
-            Console.WriteLine($"{originalAttacker?.Name} moves with {attackCard}...");
-
-            var nextPlayerIndex = Players.IndexOf(originalDefender!);
-            var defendCard = originalDefender?.Defend(attackCard);
-            Console.WriteLine($"{originalDefender?.Name} defends with {(defendCard == null ? "NOTHING" : defendCard.ToString())}");
+            // Query attacker for cards.
             
-            if (defendCard == null)
-            {
-                // Means he's taken and will skip turn.
-                Attacker = originalDefender?.GetNextWithCards();
-            }
-            else
-            {
-                Attacker = Attacker?.GetNextWithCards();
-            }
+            
+            // Query defender for defence.
 
-            Console.WriteLine("Turn ends.");
 
-            DrawCards(originalAttacker!, originalDefender!);
+            // Give option for everything to go to beaten when appropriate.
+        
 
-            Console.WriteLine("Cards Drawn.");
-
-            var playersWithCards = Players.Where(p => p.PlayerCards.Count() > 0);
-            if (playersWithCards.Count() == 1)
-            {
-                LastLoser = playersWithCards.First();
-                Console.WriteLine($"Game over. Player {LastLoser.Name} lost.");
-                GameState = GameState.Over;
-                return;
-            }
-            if (playersWithCards.Count() == 0)
-            {
-                Console.WriteLine($"Game over. It's a draw!");
-                GameState = GameState.Over;
-                return;
-            }
-
-            Console.WriteLine($"Next turn: {Attacker?.Name} attacks {Attacker?.GetNextWithCards().Name}");
-            return;
+            // Check the timer and see if we need to interfere.
         }
 
         private void DrawCards(Player first, Player last)
@@ -136,17 +125,14 @@ namespace Durak
             // Go through all players except first and last.
             var current = first.GetNext();
             
-            // TODO: This is incorrect. This causes infinite loops 
-            // if `first` has no cards. Maybe an extra method to pull true first?
-            // Done. See if it's fixed now...
             while (current != first)
             {
                 // Skip last player. Draw cards otherwise.
                 if (current != last)
                 {
-                    PlayerDrawCards(current);
+                    PlayerDrawCards(current!);
                 }
-                current = current.GetNext();
+                current = current?.GetNext();
             }
 
             // Let last player draw.
@@ -186,26 +172,159 @@ namespace Durak
             }
         }
 
-        private void InitAttacker()
+        private Player ComputeAttacker()
         {
+            Player? attacker;
             if (LastLoser != null)
             {
-                Attacker = Players.Single(p => p.GetNext() == LastLoser);
+                attacker = Players.Single(p => p.GetNext() == LastLoser);
             }
             else
             {
                 // See who's got lowest trump, otherwise lowest card. They will go first.
-                Attacker = Players.Where(p => p.PlayerCards.Any(c => c.Suit == Trump))
+                attacker = Players.Where(p => p.PlayerCards.Any(c => c.Suit == Trump))
                     .OrderBy(p => p.PlayerCards.Where(c => c.Suit == Trump).Min(c => c.Value))
                     .FirstOrDefault();
 
-                if (Attacker == null)
+                if (attacker == null)
                 {
-                    Attacker = Players
+                    attacker = Players
                         .OrderBy(p => p.PlayerCards.Min(c => c.Value))
                         .First();
                 }
             }
+
+            attacker.SwitchState(PlayerState.Attacking);
+            return attacker;
+        }
+
+        private void OnPlayerPickedCard(object? sender, PlayerPickedCardEventArgs args)
+        {
+            Console.WriteLine($"OnPlayerPickedCard({args.Player.Name}, {args.Card})");
+            Console.WriteLine($"This player is currently {args.Player.PlayerState.ToString()}");
+            Console.WriteLine($"AttackingCard: {AttackingCard}.");
+            switch(args.Player.PlayerState)
+            {
+                case PlayerState.Attacking:
+                    if (args.Card == null)
+                    {
+                        break;
+                    }
+                    OnAttackerPickedCard(args.Card);
+                    args.Player.PlayerCards.Remove(args.Card);
+                    Attacker?.GetNextWithCards()?.SwitchState(PlayerState.Defending);
+                    break;
+
+                case PlayerState.Defending:
+                    if (args.Card == null)
+                    {
+                        args.Player.PlayerCards.Add(AttackingCard!);
+                        TurnEnd(args.Player, false);
+                        break;
+                    }
+
+                    // Validate the card is eligible for defense.
+                    if (
+                        IsEligibleToDefend(
+                            card: args.Card,
+                            against: AttackingCard!,
+                            trump: Trump
+                        )
+                    )
+                    {
+                        Console.WriteLine("Defense successful.");
+                        OnDefenderPickedCard(args.Card);
+                        args.Player.PlayerCards.Remove(args.Card);
+
+                        // Successfully defended. End the turn for now.
+                        TurnEnd(args.Player, true);
+                    }
+                    break;
+
+                case PlayerState.Waiting:
+                default:
+                    break;
+            }
+        }
+
+        private void OnAttackerPickedCard(Card card)
+        {
+            card.IsSelected = false;
+            card.Sprite.Position = _tablePos + new Vector2f(TableCards.Count * 50, 0);
+
+            TableCards.Add(card);
+            AttackingCard = card;
+        }
+
+        private void OnDefenderPickedCard(Card card)
+        {
+            card.IsSelected = false;
+            card.Sprite.Position = _tablePos + new Vector2f(TableCards.Count * 50 + 20, -20);
+
+            TableCards.Add(card);
+        }
+
+        private bool IsEligibleToDefend(Card card, Card against, CardSuit trump)
+        {
+            if (card.Suit == against.Suit)
+            {
+                return card.Value > against.Value;
+            }
+
+            // Implies the `against` is not trump. Auto-eligible
+            if (card.Suit == trump)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private void TurnEnd(Player defender, bool wasDefenceSuccessful)
+        {
+            var originalAttacker = Attacker;
+
+            originalAttacker?.SwitchState(PlayerState.Waiting);
+            defender.SwitchState(PlayerState.Waiting);
+
+            if (wasDefenceSuccessful)
+            {
+                Attacker = defender;
+            }
+            else
+            {
+                Attacker = defender.GetNextWithCards();
+            }
+
+            Console.WriteLine("Turn ends.");
+
+            DrawCards(originalAttacker!, defender);
+
+            Console.WriteLine("Cards Drawn.");
+
+            var playersWithCards = Players.Where(p => p.PlayerCards.Count() > 0);
+            if (playersWithCards.Count() == 1)
+            {
+                LastLoser = playersWithCards.First();
+                Console.WriteLine($"Game over. Player {LastLoser.Name} lost.");
+                GameState = GameState.Over;
+                return;
+            }
+            if (playersWithCards.Count() == 0)
+            {
+                Console.WriteLine($"Game over. It's a draw!");
+                GameState = GameState.Over;
+                return;
+            }
+
+            Attacker?.SwitchState(PlayerState.Attacking);
+            var nextDefender = Attacker?.GetNextWithCards();
+
+            Console.WriteLine($"Next turn: {Attacker?.Name} attacks {nextDefender?.Name}");
+
+            TableCards.Clear();
+
+            return;
         }
     }
 }

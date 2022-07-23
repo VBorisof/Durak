@@ -8,6 +8,8 @@ namespace Durak
         public CardSuit Suit { get; set; }
         public CardValue Value { get; set; }
 
+        public bool IsSelected { get; set; } = false;
+
         public Sprite Sprite { get; set; }
 
         public Card(CardSuit suit, CardValue value, TextureCache textureCache)
@@ -20,7 +22,6 @@ namespace Durak
                 Position = new Vector2f(800, 600)
             };
         }
-        
         
         public void Draw(RenderTarget target, RenderStates states)
         {

@@ -1,4 +1,3 @@
-using System;
 using SFML.Graphics;
 using SFML.System;
 using SFML.Window;
@@ -7,7 +6,7 @@ namespace Durak
 {
     class Engine
     {
-        private Game game = new Game();
+        private Game _game = new Game();
 
         public void Run()
         {
@@ -35,14 +34,22 @@ namespace Durak
             };
             bot4.Name = "4";
 
-            game.AddPlayer(bot1);
-            game.AddPlayer(bot2);
+            var pc = new PC()
+            {
+                Name = "Player",
+                Position = new Vector2f(100, 700)
+            };
+
+            _game.AddPlayer(bot1);
+            _game.AddPlayer(bot2);
+            _game.AddPlayer(pc);
+            
             //game.AddPlayer(bot3);
             //game.AddPlayer(bot4);
             
-            game.Init();
+            _game.Init();
 
-            foreach(var player in game.Players)
+            foreach(var player in _game.Players)
             {
                 player.Update();
             }
@@ -58,30 +65,13 @@ namespace Durak
                     {
                         _window.Close();
                     }
-                    if (keyArgs.Code == Keyboard.Key.M)
-                    {
-                        if (game.GameState != GameState.Started)
-                        {
-                            return;
-                        }
-                        game.Move();
-                        Console.WriteLine($"[+] Moved.");
-                        if (game.GameState == GameState.Over)
-                        {
-                            Console.WriteLine("[+] Game over.");
-                            Console.WriteLine("[-] Hit R to restart. Hit Escape to exit.");
-                        }
-                    }
 
                     if (keyArgs.Code == Keyboard.Key.R)
                     {
-                        game.ResetTable();
+                        _game.ResetTable();
                     }
 
-                    foreach(var player in game.Players)
-                    {
-                        player.Update();
-                    }
+                    pc.HandleKey(keyArgs.Code);
                 };
                 
                 var clock = new Clock();
@@ -94,16 +84,29 @@ namespace Durak
                     {
                         _textManager.WriteDebug(
                             $"FPS: {fps}\n"
-                            + $"TRUMP: {game.LastCard}\n"
-                            + $"Cards: {game.Deck.Cards.Count}\n",
+                            + $"TRUMP: {_game.LastCard}\n"
+                            + $"Cards: {_game.Deck.Cards.Count}\n"
+                            + $"Current turn: {_game.Attacker?.Name}\n"
+                            + $"Turn time: {_game.GetTurnTimeLeft()}\n",
                             new Vector2f(20, 40), 
                             _window
                         );
                     }
+                    foreach(var player in _game.Players)
+                    {
+                        player.Update();
+                    }
+
+                    _game.Update();
                     
-                    foreach(var player in game.Players)
+                    foreach(var player in _game.Players)
                     {
                         player.Draw(_window, RenderStates.Default);
+                    }
+
+                    foreach(var card in _game.TableCards)
+                    {
+                        card.Draw(_window, RenderStates.Default);
                     }
                     
                     _window.DispatchEvents();

@@ -1,35 +1,37 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+
+#nullable enable
 
 namespace Durak
 {
     public class Bot : Player
     {
         public List<Card> Memory { get; set; } = new List<Card>();
+        private Random _random = new Random();
 
         public override void Update()
         {
             base.Update();
         }
 
-        public override Card Attack()
+        public Card Attack()
         {
             // Naive implementation: select weakest card.
 
             var card = PlayerCards
                 // First, push trumps away.
-                .OrderByDescending(c => (c.Suit == Game.Trump ? 0 : 1))
+                .OrderByDescending(c => (c.Suit == Game?.Trump ? 0 : 1))
                 // Then Sort, lowest first.
                 .ThenBy(c => c.Value)
                 // And grab the first one.
                 .First();
 
-            PlayerCards.Remove(card);
-
             return card;
         }
 
-        public override Card Defend(Card against)
+        public Card? Defend(Card against)
         {
             // Naive implementation: select weakest card that can defend.
             
@@ -43,16 +45,14 @@ namespace Durak
                     .OrderBy(c => c.Value)
                     .First();
 
-                PlayerCards.Remove(card);
-
                 return card;
             }
 
             // Try trumps.
             var trumpStrongerCards =
                 PlayerCards.Where(c => 
-                    against.Suit != Game.Trump
-                    && c.Suit == Game.Trump
+                    against.Suit != Game?.Trump
+                    && c.Suit == Game?.Trump
                     && c.Value > against.Value
                 );
 
@@ -62,15 +62,38 @@ namespace Durak
                     .OrderBy(c => c.Value)
                     .First();
 
-                PlayerCards.Remove(card);
-
                 return card;
             }
 
-            PlayerCards.Add(against);
-
             // Take it otherwise.
             return null;
+        }
+
+        public override void SwitchState(PlayerState newState)
+        {
+            base.SwitchState(newState);
+            switch (PlayerState)
+            {
+                case PlayerState.Attacking:
+                    OnPlayerPickedCard(
+                        new PlayerPickedCardEventArgs(
+                            this, Attack()
+                        )
+                    );
+                    break;
+
+                case PlayerState.Defending:
+                    OnPlayerPickedCard(
+                        new PlayerPickedCardEventArgs(
+                            this, Defend(Game?.AttackingCard!)
+                        )
+                    );
+                    break;
+
+                case PlayerState.Waiting:
+                default:
+                    break;
+            }
         }
     }
 }
